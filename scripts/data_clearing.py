@@ -1,46 +1,32 @@
 import pandas as pd
+import numpy as np
 
-def clean_data(df):
+def clean_large_dataframe(df):
     """
-    Cleans the input DataFrame by handling missing values, removing duplicates, 
-    standardizing text, correcting data types, and dropping unnecessary columns.
-
-    :param df: pandas DataFrame to clean.
-    :return: Cleaned pandas DataFrame.
+    Cleans a large DataFrame by:
+    1. Removing duplicate rows.
+    2. Filling missing numeric values with the column mean.
+    3. Filling missing categorical values with the mode.
+    
+    Parameters:
+        df (pd.DataFrame): The DataFrame to clean.
+    
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
     """
-    try:
-        # 1. Handle Missing Values
-        df = df.dropna(subset=["column_name"])  # Drop rows with missing critical values
-        df["numerical_column"] = df["numerical_column"].fillna(df["numerical_column"].mean())  # Fill with mean
+    # Remove duplicate rows
+    df_cleaned = df.drop_duplicates()
 
-        # 2. Remove Duplicates
-        df = df.drop_duplicates()
+    # Handle missing numeric values: Replace with column mean
+    numeric_cols = df_cleaned.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        mean_value = df_cleaned[col].mean()
+        df_cleaned[col].fillna(mean_value, inplace=True)
 
-        # 3. Standardize Text
-        if "text_column" in df.columns:
-            df["text_column"] = df["text_column"].str.strip().str.lower()
-
-        # 4. Correct Data Types
-        if "date_column" in df.columns:
-            df["date_column"] = pd.to_datetime(df["date_column"], errors="coerce")
-        if "categorical_column" in df.columns:
-            df["categorical_column"] = df["categorical_column"].astype("category")
-
-        # 5. Handle Outliers (Example: Capping numerical values)
-        if "numerical_column" in df.columns:
-            upper_limit = df["numerical_column"].quantile(0.95)
-            lower_limit = df["numerical_column"].quantile(0.05)
-            df["numerical_column"] = df["numerical_column"].clip(lower=lower_limit, upper=upper_limit)
-
-        # 6. Rename Columns
-        df.rename(columns={"old_name": "new_name"}, inplace=True)
-
-        # 7. Drop Unnecessary Columns
-        unnecessary_columns = ["unnecessary_column"]  # Add columns to drop
-        df.drop(columns=[col for col in unnecessary_columns if col in df.columns], inplace=True)
-
-        return df
-
-    except Exception as e:
-        print(f"An error occurred during cleaning: {e}")
-        return None
+    # Handle missing categorical values: Replace with column mode
+    categorical_cols = df_cleaned.select_dtypes(include=['object']).columns
+    for col in categorical_cols:
+        mode_value = df_cleaned[col].mode()[0] if not df_cleaned[col].mode().empty else "Unknown"
+        df_cleaned[col].fillna(mode_value, inplace=True)
+    
+    return df_cleaned
